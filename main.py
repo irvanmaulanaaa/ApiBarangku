@@ -3,6 +3,8 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
+from datetime import datetime
+
 
 # load environment variables
 load_dotenv()
@@ -78,14 +80,23 @@ def get_barang_or_404(id, email):
     return None, {'status': 'error', 
                   'message': "Forbidden: Anda tidak memiliki akses"}, 403
 
-def save_image(image, email, index):
+
+def save_image(image, email): # Removed 'index' parameter
     if image and image.filename and allowed_file(image.filename):
         extension = image.filename.rsplit('.', 1)[1].lower()
-        filename = f'{email.split('@')[0]}_{index}.{extension}'
+        
+        # Generate a unique filename using timestamp
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        # Use a sanitized version of the email for the filename
+        sanitized_email_prefix = email.split('@')[0].replace('.', '_').replace('-', '_') 
+        filename = f'{sanitized_email_prefix}_{timestamp}.{extension}'
+        
         image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         image.save(image_path)
 
         return f'static/uploads/{filename}'
+    return None 
+
     
 def delete_image_file(image_path):
     if image_path:
@@ -165,7 +176,7 @@ def add_barang():
     if image and image.filename:
         if allowed_file(image.filename):
             index = Barang.query.filter_by(user_id=email).count()
-            image_path = save_image(image, email, index)
+            image_path = save_image(image, email)
         else:
             return jsonify({'status': 'error',
                             'message': 'Format gambar salah (hanya JPG, JPEG, PNG)'}), 400
@@ -206,7 +217,6 @@ def update_reading(id):
     return jsonify({'status': 'success', 
                     'message': 'Barang updated'})
     
-
 
 # (DELETE) https://www.barangku.com/barangku/900
 @app.route('/barangku/<int:id>', methods=['DELETE'])
